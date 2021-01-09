@@ -48,7 +48,7 @@ int main() {
 	for (int x = 0; x < 8; x++) {
 		for (int y = 0; y < 8; y++) {
 			checkers.push_back(new Graph_lib::Rectangle{ {x * 50,y * 50},50,50 });
-			checkers[checkers.size() - 1].set_color(FL_BLACK);
+			//checkers[checkers.size() - 1].set_color(FL_BLACK);
 			if ((y + x) % 2 == 0)checkers[checkers.size() - 1].set_fill_color(FL_BLACK);
 			win.attach(checkers[checkers.size() - 1]);
 			g.add_shape(checkers[checkers.size() - 1]);
@@ -57,7 +57,7 @@ int main() {
 	for (int x = 0; x < 8; x++) {
 		for (int y = 0; y < 8; y++) {
 			stones.push_back(new Graph_lib::Circle{ {x * 50 + 25,y * 50 + 25},20 });
-			stones[stones.size() - 1].set_color(FL_BLACK);
+		//	stones[stones.size() - 1].set_color(FL_BLACK);
 			if (y < 3)stones[stones.size() - 1].set_fill_color(FL_RED);
 			if (y > 5)stones[stones.size() - 1].set_fill_color(FL_YELLOW);
 			win.attach(stones[stones.size() - 1]);
