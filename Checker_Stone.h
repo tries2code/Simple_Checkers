@@ -4,7 +4,6 @@
 //Ist noch ziemlich unbrauchbar. Hatte versucht hier Call-Backs einzufügen. Das geht entweder nur in der Fenster-Klasse oder ich bin doof..
 
 
-
 extern int sz;
 
 class checker_stone : public Widget {
@@ -48,6 +47,8 @@ void checker_stone::attach(Graph_lib::Window& win)
 	own->attach(r_two);
 
 }
+
+//move, encolor_moves und decolor_moves werden in main() demonstriert
 void checker_stone::move(int dx, int dy) {
 	hide();
 	pw->position(loc.x += dx, loc.y += dy);
