@@ -1,13 +1,11 @@
 #include"Graph.h"
 #include"Simple_window.h"
-#include"Checker_Stone.h"
+#include"Checker_Stone.h"			//Dame-Spielstein-Klasse anefangen
 
 
 int sz = 50;									//Feld Länge und Breite; vorübergehend global
 int ca = 25;									//Anpassung für Kreise, da die sonst oben links auf einem Feld stehen; vorübergehend global
 int ra = 20;									//Radius der Spielsteine; vorübergehend global
-
-
 
 //Ermöglicht eine oder mehrer Shapes zu kontrollieren; z.B. Bewegen oder Farbe ändern.
 //Ist quasi ein Vector of Shapes(in dem Fall Rectangles und Circles).
@@ -48,9 +46,6 @@ void Group::set_group_fill_color(int start, int end, Color c) {
 		vec[i].set_fill_color(c);
 	}
 }
-
-
-
 
 //Fenster Klasse
 struct My_window : Window {
