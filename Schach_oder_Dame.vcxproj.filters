@@ -38,18 +38,6 @@
     <ClInclude Include="GUI.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="Matrix.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="Matrix11.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="MatrixIO.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="MatrixIO11.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
     <ClInclude Include="Point.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
@@ -60,6 +48,9 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="std_lib_facilities.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="Checker_Stone.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

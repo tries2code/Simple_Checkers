@@ -1,5 +1,13 @@
 #include"Graph.h"
 #include"Simple_window.h"
+#include"Checker_Stone.h"
+
+
+int sz = 50;									//Feld Länge und Breite; vorübergehend global
+int ca = 25;									//Anpassung für Kreise, da die sonst oben links auf einem Feld stehen; vorübergehend global
+int ra = 20;									//Radius der Spielsteine; vorübergehend global
+
+
 
 //Ermöglicht eine oder mehrer Shapes zu kontrollieren; z.B. Bewegen oder Farbe ändern.
 //Ist quasi ein Vector of Shapes(in dem Fall Rectangles und Circles).
@@ -41,19 +49,19 @@ void Group::set_group_fill_color(int start, int end, Color c) {
 	}
 }
 
+
+
+
 //Fenster Klasse
 struct My_window : Window {
 	My_window(Point xy, int w, int h, const string& title)
 		: Window(xy, w, h, title),
 		button_pushed(false),
-		next_button(Point(x_max() - 70, 0), 70, 20, "Next", cb_next), 
+		next_button(Point(x_max() - 70, 0), 70, 20, "Next", cb_next),
 		quit_button(Point(x_max() - 70, 30), 70, 20, "Quit", cb_quit)
 	{
 		attach(next_button);
 		attach(quit_button);
-		int sz = 50;									//Feld Länge und Breite
-		int ca = 25;									//Anpassung für Kreise, da die sonst oben links auf einem Feld stehen
-		int ra = 20;									//Radius der Spielsteine
 
 		for (int x = 0; x < 8; x++) {					//Felder
 			for (int y = 0; y < 8; y++) {
@@ -64,17 +72,17 @@ struct My_window : Window {
 				g.add_shape(checkers[checkers.size() - 1]);
 			}
 		}
-		for (int x = 0; x < 8; x++) {					//Steine
-			for (int y = 0; y < 8; y++) {
-				stones.push_back(new Graph_lib::Circle{ {x * sz + ca,y * sz + ca},ra });
-				//	stones[stones.size() - 1].set_color(FL_BLACK);
-				if (y < 3)stones[stones.size() - 1].set_fill_color(FL_RED);
-				if (y > 5)stones[stones.size() - 1].set_fill_color(FL_YELLOW);
-				attach(stones[stones.size() - 1]);
-				g.add_shape(stones[stones.size() - 1]);
-				if (y == 1)y = 5;
-			}
-		}
+		//		for (int x = 0; x < 8; x++) {					//Steine
+		//			for (int y = 0; y < 8; y++) {
+		//				stones.push_back(new Graph_lib::Circle{ {x * sz + ca,y * sz + ca},ra });
+		//				//	stones[stones.size() - 1].set_color(FL_BLACK);
+		//				if (y < 3)stones[stones.size() - 1].set_fill_color(FL_RED);
+		//				if (y > 5)stones[stones.size() - 1].set_fill_color(FL_YELLOW);
+		//				attach(stones[stones.size() - 1]);
+		//				g.add_shape(stones[stones.size() - 1]);
+		//				if (y == 1)y = 5;
+		//			}
+		//		}
 
 	}
 	void wait_for_button() {
@@ -98,27 +106,31 @@ private:
 
 	void next() { button_pushed = true; }				//Löst FL::redraw() (in void wait_for_button()) aus.
 	void quit() { hide(); button_pushed = true; }
-	
+
 };
 
 int main() {
 	My_window win{ {100,100},x_max(),y_max(),"Schach oder Dame" };
+	win.g.move(100, 100);
 
-	//Animations Quatsch
+	checker_stone cs{ {400,400},sz,sz," ",0 };
+	win.attach(cs);
 	win.wait_for_button();
-	win.stones[5].move(50, 50);				//bewegt einen Stein
+
+	//Next drücken 
+
+	cs.move(-sz, -sz);
 	win.wait_for_button();
-	win.stones[14].move(50, -50);
+
+	//Next drücken 
+
+
+	cs.encolor_moves();
 	win.wait_for_button();
-	win.g.move(100, 100);					//bewegt alles
-	win.wait_for_button();
-	win.g.set_element_color(73, Color::blue);
-	win.wait_for_button();
-	win.g.set_element_fill_color(73, Color::blue);
-	win.wait_for_button();
-	win.g.set_group_color(17, 20, Color::green);
-	win.wait_for_button();
-	win.g.set_group_fill_color(17, 20, Color::green);
+
+	//Next drücken 
+
+	cs.decolor_moves();
 	win.wait_for_button();
 }
 
