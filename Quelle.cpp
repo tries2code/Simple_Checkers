@@ -1,10 +1,9 @@
 #include"Graph.h"
 #include"Simple_window.h"
-#include"Checker_Stone.h"			//Dame-Spielstein-Klasse anefangen
-
+#include"Checker_Stone.h"
 
 int sz = 50;									//Feld Länge und Breite; vorübergehend global
-int ca = 25;									//Anpassung für Kreise, da die sonst oben links auf einem Feld stehen; vorübergehend global
+int ca = sz / 2;									//Anpassung für Kreise, da die sonst oben links auf einem Feld stehen; vorübergehend global
 int ra = 20;									//Radius der Spielsteine; vorübergehend global
 
 //Ermöglicht eine oder mehrer Shapes zu kontrollieren; z.B. Bewegen oder Farbe ändern.
@@ -47,17 +46,25 @@ void Group::set_group_fill_color(int start, int end, Color c) {
 	}
 }
 
-//Fenster Klasse
-struct My_window : Window {
+
+//Fenster Klasse; ist noch ein ziemliches Chaos...
+class My_window : Window {
+
+	bool button_pushed;
+	Button next_button;
+	Button quit_button;
+	checker_stone cs;									//Der Spielstein
+
+	Vector_ref< Graph_lib::Rectangle>checkers;			//Für die Felder
+
+public:
 	My_window(Point xy, int w, int h, const string& title)
 		: Window(xy, w, h, title),
 		button_pushed(false),
 		next_button(Point(x_max() - 70, 0), 70, 20, "Next", cb_next),
-		quit_button(Point(x_max() - 70, 30), 70, 20, "Quit", cb_quit)
+		quit_button(Point(x_max() - 70, 30), 70, 20, "Quit", cb_quit),
+		cs({ 300,400 }, sz, sz, " ", cb_cs_pressed, cb_b_left, cb_b_right, false)
 	{
-		attach(next_button);
-		attach(quit_button);
-
 		for (int x = 0; x < 8; x++) {					//Felder
 			for (int y = 0; y < 8; y++) {
 				checkers.push_back(new Graph_lib::Rectangle{ {x * sz,y * sz},sz,sz });
@@ -67,7 +74,7 @@ struct My_window : Window {
 				g.add_shape(checkers[checkers.size() - 1]);
 			}
 		}
-		//		for (int x = 0; x < 8; x++) {					//Steine
+		//		for (int x = 0; x < 8; x++) {					//Stein-Attrappen
 		//			for (int y = 0; y < 8; y++) {
 		//				stones.push_back(new Graph_lib::Circle{ {x * sz + ca,y * sz + ca},ra });
 		//				//	stones[stones.size() - 1].set_color(FL_BLACK);
@@ -78,7 +85,9 @@ struct My_window : Window {
 		//				if (y == 1)y = 5;
 		//			}
 		//		}
-
+		attach(next_button);
+		attach(quit_button);
+		attach(cs);
 	}
 	void wait_for_button() {
 		while (!button_pushed) Fl::wait();
@@ -86,47 +95,52 @@ struct My_window : Window {
 		Fl::redraw();
 	}
 
-	Button next_button;
-	Button quit_button;
-
 	Group g;											//aus Faulheit in public gelassen, fraglich ob man das langfristig überhaupt benötigt
-	Vector_ref< Graph_lib::Rectangle>checkers;			//aus Faulheit in public gelassen
-	Vector_ref< Graph_lib::Circle>stones;				//aus Faulheit in public gelassen
+//	Vector_ref< Graph_lib::Circle>stones;				//aus Faulheit in public gelassen
+
 private:
-	bool button_pushed;
+
 	static void cb_next(Address, Address addr) { static_cast<My_window*>(addr)->next(); }		//Sogenannte Call Back Funktionen für Knöpfe, callen die eigentlichen Funktionen für die Knöpfe
-//	static void cb_quit(Address, Address addr) { static_cast<My_window*>(addr)->quit(); }
 	static void cb_quit(Address, Address addr) { reference_to<My_window>(addr).quit(); }		//Geht auch so, hab vergessen was besser ist
+
+	//Call_backs für Spielstein
+	static void cb_cs_pressed(Address, Address addr) { reference_to<My_window>(addr).cs_pressed(); }
+	static void cb_b_left(Address, Address addr) { reference_to<My_window>(addr).left_pressed(); }
+	static void cb_b_right(Address, Address addr) { reference_to<My_window>(addr).right_pressed(); }
 
 
 	void next() { button_pushed = true; }				//Löst FL::redraw() (in void wait_for_button()) aus.
 	void quit() { hide(); button_pushed = true; }
 
+
+	//Call_back Funktionen für Spielstein
+	void cs_pressed() {
+		cs.encolor_moves();
+		cs.m_enable();
+	}
+	void left_pressed() {
+		if (cs.is_moveable()) {
+			cs.decolor_moves();
+			cs.move(-sz, -sz);
+			cs.m_disable();
+		}
+	}
+	void right_pressed() {
+		if (cs.is_moveable()) {
+			cs.decolor_moves();
+			cs.move(sz, -sz);
+			cs.m_disable();
+		}
+	}
 };
 
 int main() {
+
 	My_window win{ {100,100},x_max(),y_max(),"Schach oder Dame" };
 	win.g.move(100, 100);
 
-	checker_stone cs{ {400,400},sz,sz," ",0 };
-	win.attach(cs);
 	win.wait_for_button();
 
-	//Next drücken 
-
-	cs.move(-sz, -sz);
-	win.wait_for_button();
-
-	//Next drücken 
-
-
-	cs.encolor_moves();
-	win.wait_for_button();
-
-	//Next drücken 
-
-	cs.decolor_moves();
-	win.wait_for_button();
 }
 
 
