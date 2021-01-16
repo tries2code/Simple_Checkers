@@ -1,93 +1,72 @@
 #include"Graph.h"
 #include"Simple_window.h"
-#include"Checker_Stone.h"
+
+//Button unter schwarzen Felder eingefügt, die geben Position wieder
+//Spielsteine richtig angeordnet
+//Spielsteine können ausgewählt und manipulirt werden 
+//field_pressed ist für die Spielmechanik, zurzeit im Aufbau
+//Group Klasse mit ls und us ersetzt
 
 int sz = 50;									//Feld Länge und Breite; vorübergehend global
 int ca = sz / 2;									//Anpassung für Kreise, da die sonst oben links auf einem Feld stehen; vorübergehend global
 int ra = 20;									//Radius der Spielsteine; vorübergehend global
 
-//Ermöglicht eine oder mehrer Shapes zu kontrollieren; z.B. Bewegen oder Farbe ändern.
-//Ist quasi ein Vector of Shapes(in dem Fall Rectangles und Circles).
-//Kann evt wegrationalisiert werden.
-class Group :public Shape {
-public:
-	Group() {}
-	void add_shape(Shape& s);
-	void move(int x, int y);
-	void set_element_color(int element, Color c);
-	void set_element_fill_color(int element, Color c);
-	void set_group_color(int start, int end, Color c);
-	void set_group_fill_color(int start, int end, Color c);
-private:
-	Vector_ref<Shape>vec;
-};
-void Group::add_shape(Shape& s) {
-	vec.push_back(s);
-}
-void Group::move(int x, int y) {
-	for (int i = 0; i < vec.size(); i++) {
-		vec[i].move(x, y);
-	}
-}
-void Group::set_element_color(int element, Color c) {
-	vec[element].set_color(c);
-}
-void Group::set_element_fill_color(int element, Color c) {
-	vec[element].set_fill_color(c);
-}
-void Group::set_group_color(int start, int end, Color c) {
-	for (int i = start; i < end; i++) {
-		vec[i].set_color(c);
-	}
-}
-void Group::set_group_fill_color(int start, int end, Color c) {
-	for (int i = start; i < end; i++) {
-		vec[i].set_fill_color(c);
-	}
-}
+int ls = 100;									//Linker Abstand zum Bildschirmrand
+int us = 100;									//Oberer Absatnd zum Bilschirmrand
+
+//Helper Function
+Point get_point(int x, int y) {
+	Point res{ x - x % sz,y - y % sz };
+	return res;
+}		//Ermittelt Koordinaten für Spielfeld
+
+
 
 
 //Fenster Klasse; ist noch ein ziemliches Chaos...
-class My_window : Window {
+class My_window : public Window {
 
 	bool button_pushed;
 	Button next_button;
 	Button quit_button;
-	checker_stone cs;									//Der Spielstein
 
+	Vector_ref<Button>field_buttons;
 	Vector_ref< Graph_lib::Rectangle>checkers;			//Für die Felder
+	Vector_ref< Graph_lib::Circle>stones;
 
 public:
-	My_window(Point xy, int w, int h, const string& title)
-		: Window(xy, w, h, title),
+	My_window(Point xy, int w, int h, const string& title) :Window(w, h, title),
 		button_pushed(false),
 		next_button(Point(x_max() - 70, 0), 70, 20, "Next", cb_next),
-		quit_button(Point(x_max() - 70, 30), 70, 20, "Quit", cb_quit),
-		cs({ 300,400 }, sz, sz, " ", cb_cs_pressed, cb_b_left, cb_b_right, false)
+		quit_button(Point(x_max() - 70, 30), 70, 20, "Quit", cb_quit)
 	{
-		for (int x = 0; x < 8; x++) {					//Felder
+		for (int x = 0; x < 8; x++) {					//Knöppe unter den Feldern
 			for (int y = 0; y < 8; y++) {
-				checkers.push_back(new Graph_lib::Rectangle{ {x * sz,y * sz},sz,sz });
-				//checkers[checkers.size() - 1].set_color(FL_BLACK);
-				if ((y + x) % 2 == 0)checkers[checkers.size() - 1].set_fill_color(FL_BLACK);
-				attach(checkers[checkers.size() - 1]);
-				g.add_shape(checkers[checkers.size() - 1]);
+				if ((y + x) % 2 == 0)field_buttons.push_back(new Button{ {ls + x * sz,us + y * sz},sz,sz ," ",cb_field_pressed });
+				attach(field_buttons[field_buttons.size() - 1]);
 			}
 		}
-		//		for (int x = 0; x < 8; x++) {					//Stein-Attrappen
-		//			for (int y = 0; y < 8; y++) {
-		//				stones.push_back(new Graph_lib::Circle{ {x * sz + ca,y * sz + ca},ra });
-		//				//	stones[stones.size() - 1].set_color(FL_BLACK);
-		//				if (y < 3)stones[stones.size() - 1].set_fill_color(FL_RED);
-		//				if (y > 5)stones[stones.size() - 1].set_fill_color(FL_YELLOW);
-		//				attach(stones[stones.size() - 1]);
-		//				g.add_shape(stones[stones.size() - 1]);
-		//				if (y == 1)y = 5;
-		//			}
-		//		}
+		for (int x = 0; x < 8; x++) {					//Felder
+			for (int y = 0; y < 8; y++) {
+				checkers.push_back(new Graph_lib::Rectangle{ {ls + x * sz,us + y * sz},sz,sz });
+				if ((y + x) % 2 == 0)checkers[checkers.size() - 1].set_fill_color(FL_BLACK);
+				attach(checkers[checkers.size() - 1]);
+			}
+		}
+		for (int x = 0; x < 8; x++) {					//Steine
+			for (int y = 0; y < 8; y++) {
+				if ((y + x) % 2 == 0)stones.push_back(new Graph_lib::Circle{ {ls + x * sz + ca,us + y * sz + ca},ra });
+				attach(stones[stones.size() - 1]);
+				if (y == 1)y = 5;
+			}
+		}
+		for (int i = 0; i < stones.size(); i++) {			//Farbe der Steine, die Kondition if ((y + x) % 2 == 0) im oberen Loop hat bei der Einfärbung irgendwie zu Schwulitäten geführt...keine Ahnung warum
+			if (i % 2 == 0)stones[i].set_fill_color(FL_RED);
+			else stones[i].set_fill_color(FL_YELLOW);
+		}
+
 		attach(next_button);
 		attach(quit_button);
-		attach(cs);
 	}
 	void wait_for_button() {
 		while (!button_pushed) Fl::wait();
@@ -95,52 +74,51 @@ public:
 		Fl::redraw();
 	}
 
-	Group g;											//aus Faulheit in public gelassen, fraglich ob man das langfristig überhaupt benötigt
-//	Vector_ref< Graph_lib::Circle>stones;				//aus Faulheit in public gelassen
-
 private:
+	Graph_lib::Circle* get_stone(Point p) {				//Ermittelt Spielstein
+
+		Graph_lib::Circle* res;
+		Point curr;
+		for (int i = 0; i < stones.size(); i++) {
+			curr = stones[i].center();
+			if (curr == Point{ p.x + ca,p.y + ca }) {
+				res = &stones[i];
+				return res;
+			}
+		}
+		return nullptr;
+	}
+
 
 	static void cb_next(Address, Address addr) { static_cast<My_window*>(addr)->next(); }		//Sogenannte Call Back Funktionen für Knöpfe, callen die eigentlichen Funktionen für die Knöpfe
-	static void cb_quit(Address, Address addr) { reference_to<My_window>(addr).quit(); }		//Geht auch so, hab vergessen was besser ist
-
-	//Call_backs für Spielstein
-	static void cb_cs_pressed(Address, Address addr) { reference_to<My_window>(addr).cs_pressed(); }
-	static void cb_b_left(Address, Address addr) { reference_to<My_window>(addr).left_pressed(); }
-	static void cb_b_right(Address, Address addr) { reference_to<My_window>(addr).right_pressed(); }
-
+	static void cb_quit(Address, Address addr) { reference_to<My_window>(addr).quit(); }		//Ist die Stroustrup Variante, macht auch nur 		return *static_cast<W*>(pw);
+	static void cb_field_pressed(Address, Address addr) { reference_to<My_window>(addr).field_pressed(); }
 
 	void next() { button_pushed = true; }				//Löst FL::redraw() (in void wait_for_button()) aus.
 	void quit() { hide(); button_pushed = true; }
 
+	void  field_pressed() {
+		Point p = get_point(Fl::event_x(), Fl::event_y());
 
-	//Call_back Funktionen für Spielstein
-	void cs_pressed() {
-		cs.encolor_moves();
-		cs.m_enable();
-	}
-	void left_pressed() {
-		if (cs.is_moveable()) {
-			cs.decolor_moves();
-			cs.move(-sz, -sz);
-			cs.m_disable();
-		}
-	}
-	void right_pressed() {
-		if (cs.is_moveable()) {
-			cs.decolor_moves();
-			cs.move(sz, -sz);
-			cs.m_disable();
-		}
+		Graph_lib::Circle* c = get_stone(p);
+
+		c->set_color(Color::cyan);
+		c->move(-sz, -sz);
+		cout << p.x << " " << p.y << endl;
+		Fl::redraw();
 	}
 };
 
+
+
 int main() {
 
-	My_window win{ {100,100},x_max(),y_max(),"Schach oder Dame" };
-	win.g.move(100, 100);
+	//My_window win{ {100,100},x_max(),y_max(),"Schach oder Dame" };
+	My_window win{ {100,100},1000,800,"Schach oder Dame" };
+
+
+
 
 	win.wait_for_button();
 
 }
-
-

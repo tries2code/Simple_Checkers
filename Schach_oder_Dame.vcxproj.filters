@@ -50,8 +50,5 @@
     <ClInclude Include="std_lib_facilities.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="Checker_Stone.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>
