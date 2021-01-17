@@ -1,5 +1,6 @@
 #include"Graph.h"
 #include"Simple_window.h"
+#include <FL/fl_ask.H>
 #undef vector
 
 
@@ -59,6 +60,9 @@ class My_window : public Window {
 	Button next_button;
 	Button quit_button;
 
+	int countRed = 8;
+	int countYellow = 8;
+
 	Out_box current_turn;								//Sagt einem wer grad dran ist, ja, ist hässlich, kann man überarbeiten
 
 	Vector_ref<Button>field_buttons;					//Für die Knöppe unter den schwarzen Feldern
@@ -102,6 +106,23 @@ public:
 		current_turn.put("Red");						//rot fängt an
 	}
 	void wait_for_button() {
+
+		if (countRed == 0) {					// Spielende verkünden. Switchanweisung sind noch Blödsinn aber irgendwas muss drin stehen.
+			switch (fl_choice("Gelb hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
+			case 0: countRed = 8; // Spielbrett neu aufbauen
+			case 1: countRed = 0; // No (default)
+			}
+
+		}
+
+		if (countYellow == 0) {
+			switch (fl_choice("Rot hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
+			case 0:  countRed = 8;// Spielbrett neu aufbauen
+			case 1:  countRed = 0;// No (default)
+			}
+
+		}
+
 		while (!button_pushed) Fl::wait();
 		button_pushed = false;
 		Fl::redraw();
@@ -185,15 +206,15 @@ private:
 		}
 		else {
 			if (!tile_empty(p) && stone_selected) {						//Spielstein abwählen
-				curr_stone = get_stone(p);
+				curr_stone = get_stone(p);							
 				Color c_curr = curr_stone->fill_color();
 				if (c_curr == c_turn) {
 					curr_stone->set_color(Color::black);
 					stone_selected = false;
-				}
+					}
 
+				}
 			}
-		}
 
 
 
@@ -240,6 +261,12 @@ private:
 					if (stones[i].center() == lost_stone) {
 						detach(stones[i]);
 						stones.erase(i);
+						if (c_turn == c_player1) {
+							countRed = countRed - 1;
+						}
+						if (c_turn == c_player2) {
+							countRed = countYellow - 1;
+						}
 					}
 				}
 
