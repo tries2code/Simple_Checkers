@@ -171,6 +171,9 @@ private:
 			temp_y = curr_stone->center().y;
 		}
 
+
+
+
 		if (!tile_empty(p) && !stone_selected) {						//Spielstein auswählen
 			curr_stone = get_stone(p);
 			Color c_curr = curr_stone->fill_color();
@@ -178,7 +181,22 @@ private:
 				curr_stone->set_color(Color::cyan);
 				stone_selected = true;
 			}
+			
 		}
+		else {
+			if (!tile_empty(p) && stone_selected) {						//Spielstein abwählen
+				curr_stone = get_stone(p);
+				Color c_curr = curr_stone->fill_color();
+				if (c_curr == c_turn) {
+					curr_stone->set_color(Color::black);
+					stone_selected = false;
+				}
+
+			}
+		}
+
+
+
 
 		if (tile_empty(p) && stone_selected && !must_attack({ temp_x - ca, temp_y - ca })) {
 			Point pp = curr_stone->center();
