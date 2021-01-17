@@ -189,7 +189,8 @@ private:
 			
 		}
 		else {
-			if (!tile_empty(p) && stone_selected) {						//Spielstein abwählen
+			if (!tile_empty(p) && stone_selected && !must_attack({ temp_x - ca, temp_y - ca })) {						//Spielstein abwählen
+				curr_stone->set_color(Color::black);
 				curr_stone = get_stone(p);							
 				Color c_curr = curr_stone->fill_color();
 				if (c_curr == c_turn) {
