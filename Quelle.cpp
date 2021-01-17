@@ -188,7 +188,7 @@ private:
 			}
 			
 		}
-		else {
+	/*	else {
 			if (!tile_empty(p) && stone_selected) {						//Spielstein abwählen
 				curr_stone = get_stone(p);							
 				Color c_curr = curr_stone->fill_color();
@@ -198,7 +198,7 @@ private:
 					}
 
 				}
-			}
+			} */
 
 
 
@@ -249,7 +249,7 @@ private:
 							countRed = countRed - 1;
 						}
 						if (c_turn == c_player2) {
-							countRed = countYellow - 1;
+							countYellow = countYellow - 1;
 						}
 					}
 				}
