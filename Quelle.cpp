@@ -195,10 +195,10 @@ private:
 				if (c_curr == c_turn) {
 					curr_stone->set_color(Color::black);
 					stone_selected = false;
-					}
-
 				}
+
 			}
+		}
 
 
 
