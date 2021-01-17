@@ -107,22 +107,6 @@ public:
 	}
 	void wait_for_button() {
 
-		if (countRed == 0) {					// Spielende verkünden. Switchanweisung sind noch Blödsinn aber irgendwas muss drin stehen.
-			switch (fl_choice("Gelb hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
-			case 0: countRed = 8; // Spielbrett neu aufbauen
-			case 1: countRed = 0; // No (default)
-			}
-
-		}
-
-		if (countYellow == 0) {
-			switch (fl_choice("Rot hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
-			case 0:  countRed = 8;// Spielbrett neu aufbauen
-			case 1:  countRed = 0;// No (default)
-			}
-
-		}
-
 		while (!button_pushed) Fl::wait();
 		button_pushed = false;
 		Fl::redraw();
@@ -297,6 +281,23 @@ private:
 		//if (curr_stone)test = { curr_stone->center().x - ca,curr_stone->center().y - ca };		//Ist nur fürs debuggen
 		//cout << "hostile present" << hostile_present(p) << endl;									//Ist nur fürs debuggen
 		//if (curr_stone)cout << "must attack" << must_attack(test) << endl;						//Ist nur fürs debuggen
+
+		if (countRed == 0) {					// Spielende verkünden. Switchanweisung sind noch Blödsinn aber irgendwas muss drin stehen.
+			switch (fl_choice("Gelb hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
+			case 0: countRed = 8; // Spielbrett neu aufbauen
+			case 1: countRed = 0; // No (default)
+			}
+
+		}
+
+		if (countYellow == 0) {
+			switch (fl_choice("Rot hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
+			case 0:  countRed = 8;// Spielbrett neu aufbauen
+			case 1:  countRed = 0;// No (default)
+			}
+
+		}
+
 
 		Fl::redraw();
 	}
