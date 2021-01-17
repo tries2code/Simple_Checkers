@@ -1,5 +1,7 @@
 #include"Graph.h"
 #include"Simple_window.h"
+#undef vector
+
 
 //Button unter schwarzen Felder eingefügt, die geben Position wieder
 //Spielsteine richtig angeordnet
@@ -13,10 +15,10 @@
 //Spielsteine können nicht rückwärts gehen
 //Spielsteine können nur ein Feld weit laufen
 //oben genanntes kann natürlich auf Grund von bisher nicht gefundenen Bugs gelogen sein
-
-//Es fehlt noch:
 //Mechanik zum gegenerische Steine fangen
 //Mechanik für Multikills
+
+//Es fehlt noch:
 //Trasformation eines Spielsteins zur Dame mit entsprechenden Attributen
 //Tests Tests Tests....
 
@@ -44,8 +46,10 @@ bool operator==(const Graph_lib::Color& a, const Graph_lib::Color& b) {				//Ver
 	if (a.as_int() == b.as_int())return true;
 	return false;
 }
-
-
+bool operator!=(const Graph_lib::Color& a, const Graph_lib::Color& b) {				//Vergleicht Farben
+	if (!operator==(a, b))return true;
+	return false;
+}
 
 //Fenster Klasse; ist noch ein ziemliches Chaos...
 class My_window : public Window {
@@ -77,7 +81,7 @@ public:
 		for (int x = 0; x < 8; x++) {					//Felder
 			for (int y = 0; y < 8; y++) {
 				checkers.push_back(new Graph_lib::Rectangle{ {ls + x * sz,us + y * sz},sz,sz });
-				if ((y + x) % 2 == 0)checkers[checkers.size() - 1].set_fill_color(FL_BLACK);
+				if ((y + x) % 2 == 0)checkers[checkers.size() - 1].set_fill_color(Color::black);
 				attach(checkers[checkers.size() - 1]);
 			}
 		}
@@ -104,14 +108,40 @@ public:
 	}
 
 private:
-	bool tile_empty(Point p) {
-		Point curr = { p.x + ca,p.y + ca };
+	bool tile_empty(Point p)const {
+		Point curr{ p.x + ca,p.y + ca };
+		if (p.x < ls || p.x >= ls + 8 * sz || p.y < us || p.y >= us + 8 * sz)return false;
 		for (int i = 0; i < stones.size(); i++) {
 			if (stones[i].center() == curr)return false;
 		}
 		return true;
 	}
-	Graph_lib::Circle* get_stone(Point p) {				//Ermittelt Spielstein
+	bool hostile_present(Point p) const {
+		if (stone_selected && tile_empty(p))return false;
+		Point curr{ p.x + ca,p.y + ca };
+		for (int i = 0; i < stones.size(); i++)
+			if (stones[i].center() == curr && stones[i].fill_color() != c_turn)return true;
+
+		return false;
+	}
+	bool must_attack(Point p) const {
+		if ((hostile_present({ p.x + sz,p.y + sz }) && tile_empty({ p.x + sz * 2,p.y + sz * 2 })) ||
+			(hostile_present({ p.x - sz,p.y - sz }) && tile_empty({ p.x - sz * 2,p.y - sz * 2 })) ||
+			(hostile_present({ p.x + sz,p.y - sz }) && tile_empty({ p.x + sz * 2,p.y - sz * 2 })) ||
+			(hostile_present({ p.x - sz,p.y + sz }) && tile_empty({ p.x - sz * 2,p.y + sz * 2 })))return true;
+		return false;
+	}
+	vector<Point> strike() {
+		Point stone{ curr_stone->center().x - ca, curr_stone->center().y - ca };
+		vector<Point> res;
+		if (hostile_present({ stone.x + sz,stone.y + sz }) && tile_empty({ stone.x + sz * 2,stone.y + sz * 2 }))res.push_back({ stone.x + sz * 2,stone.y + sz * 2 });
+		if (hostile_present({ stone.x - sz,stone.y - sz }) && tile_empty({ stone.x - sz * 2,stone.y - sz * 2 }))res.push_back({ stone.x - sz * 2,stone.y - sz * 2 });
+		if (hostile_present({ stone.x + sz,stone.y - sz }) && tile_empty({ stone.x + sz * 2,stone.y - sz * 2 }))res.push_back({ stone.x + sz * 2,stone.y - sz * 2 });
+		if (hostile_present({ stone.x - sz,stone.y + sz }) && tile_empty({ stone.x - sz * 2,stone.y + sz * 2 }))res.push_back({ stone.x - sz * 2,stone.y + sz * 2 });
+
+		return res;
+	}
+	Graph_lib::Circle* get_stone(Point& p) {				//Ermittelt Spielstein
 		Graph_lib::Circle* res;
 		Point curr;
 		for (int i = 0; i < stones.size(); i++) {
@@ -124,7 +154,6 @@ private:
 		return nullptr;
 	}
 
-
 	static void cb_next(Address, Address addr) { static_cast<My_window*>(addr)->next(); }		//Sogenannte Call Back Funktionen für Knöpfe, callen die eigentlichen Funktionen für die Knöpfe
 	static void cb_quit(Address, Address addr) { reference_to<My_window>(addr).quit(); }		//Ist die Stroustrup Variante, macht auch nur 		return *static_cast<W*>(pw);
 	static void cb_tile_pressed(Address, Address addr) { reference_to<My_window>(addr).tile_pressed(); }
@@ -133,9 +162,16 @@ private:
 	void quit() { hide(); button_pushed = true; }
 
 	void  tile_pressed() {
-		Point p = get_point(Fl::event_x(), Fl::event_y());				//p=Koordinaten der aktuell gedrücketen Feldes
+		Point p = get_point(Fl::event_x(), Fl::event_y());				//p=Koordinaten des aktuell gedrücketen Feldes
 
-		if (!tile_empty(p) && !stone_selected) {
+		int temp_x = 0;
+		int temp_y = 0;
+		if (stone_selected) {
+			temp_x = curr_stone->center().x;
+			temp_y = curr_stone->center().y;
+		}
+
+		if (!tile_empty(p) && !stone_selected) {						//Spielstein auswählen
 			curr_stone = get_stone(p);
 			Color c_curr = curr_stone->fill_color();
 			if (c_curr == c_turn) {
@@ -144,7 +180,7 @@ private:
 			}
 		}
 
-		if (tile_empty(p) && stone_selected) {
+		if (tile_empty(p) && stone_selected && !must_attack({ temp_x - ca, temp_y - ca })) {
 			Point pp = curr_stone->center();
 			Point diff = { p.x - pp.x,p.y - pp.y };
 
@@ -157,7 +193,7 @@ private:
 				current_turn.put("Yellow");
 			}
 
-			if (c_turn == c_player2 && p.y > pp.y && abs(diff.x) <= sz + ca && abs(diff.y) <= sz - ca) {	//Bewegung gelb
+			if (c_turn == c_player2 && p.y > pp.y && abs(diff.x) <= sz + ca && abs(diff.y) <= sz - ca) {					//Bewegung gelb
 				curr_stone->move(diff.x + ca, diff.y + ca);
 				curr_stone->set_color(Color::black);
 				curr_stone = nullptr;
@@ -166,7 +202,57 @@ private:
 				current_turn.put("Red");
 			}
 		}
-		cout << p.x << " " << p.y << endl;					//Ist nur fürs debuggen
+		if (tile_empty(p) && stone_selected && must_attack({ temp_x - ca, temp_y - ca })) {		//Fangen (auch Multikill)
+
+			vector<Point> possible_moves = strike();
+			Point lost_stone;																	//Position vom Stein der gefangen wird														
+
+
+			for (auto k : possible_moves)if (p == k) {											//Mann muss fangen wenn der gewählte Stein fangen kann
+
+				curr_stone->move((k.x + ca) - temp_x, (k.y + ca) - temp_y);
+
+				if (temp_x > p.x && temp_y > p.y) lost_stone = { temp_x - sz,temp_y - sz };
+				if (temp_x < p.x && temp_y < p.y) lost_stone = { temp_x + sz,temp_y + sz };
+				if (temp_x < p.x && temp_y > p.y) lost_stone = { temp_x + sz,temp_y - sz };
+				if (temp_x > p.x && temp_y < p.y) lost_stone = { temp_x - sz,temp_y + sz };
+
+
+				for (int i = 0; i < stones.size(); i++) {
+					if (stones[i].center() == lost_stone) {
+						detach(stones[i]);
+						stones.erase(i);
+					}
+				}
+
+				temp_x = curr_stone->center().x - ca;
+				temp_y = curr_stone->center().y - ca;
+
+				if (!must_attack({ temp_x, temp_y })) {											//Man muss fangen solange man kann
+					curr_stone->set_color(Color::black);
+					curr_stone = nullptr;
+					stone_selected = false;
+					if (c_turn == c_player1) {
+						c_turn = c_player2;
+						current_turn.put("Yellow");
+					}
+					else if (c_turn == c_player2) {
+						c_turn = c_player1;
+						current_turn.put("Red");
+					}
+				}
+			}
+		}
+		//Transformation Dame
+		//Bewegen Dame
+		//Fangen Dame
+
+		cout << p.x << " " << p.y << endl;																//Ist nur fürs debuggen
+		//Point test;																				//Ist nur fürs debuggen
+		//if (curr_stone)test = { curr_stone->center().x - ca,curr_stone->center().y - ca };		//Ist nur fürs debuggen
+		//cout << "hostile present" << hostile_present(p) << endl;									//Ist nur fürs debuggen
+		//if (curr_stone)cout << "must attack" << must_attack(test) << endl;						//Ist nur fürs debuggen
+
 		Fl::redraw();
 	}
 };

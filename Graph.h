@@ -106,13 +106,19 @@ namespace Graph_lib {
 		void push_back(T* p) { v.push_back(p); owned.push_back(p); }
 
 		// ???void erase(???)
+		void erase(int x) {	//selbst gebastelt für Dame-Spiel
+			v.erase((v.begin() + x));
+			owned.erase((owned.begin() + x));
+			v.shrink_to_fit();
+			owned.shrink_to_fit();
+		}
 
 		T& operator[](int i) { return *v[i]; }
 		const T& operator[](int i) const { return *v[i]; }
 		int size() const { return v.size(); }
 	};
 
-//	typedef double Fct(double);							//Anpassung wegen S533. Sonst lässt sich kein lambda(mit [n]) an Function übergeben
+	//	typedef double Fct(double);							//Anpassung wegen S533. Sonst lässt sich kein lambda(mit [n]) an Function übergeben
 	typedef std::function<double(double)> Fct;			//Anpassung wegen S533. Sonst lässt sich kein lambda(mit [n]) an Function übergeben
 
 
