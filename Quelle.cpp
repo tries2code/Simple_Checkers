@@ -10,9 +10,11 @@
 //Mechanik zum gegenerische Steine fangen
 //Mechanik für Multikills
 //Wenn einer gewonnen hat kann man von vorne anfangen oder beenden
+//Trasformation eines Spielsteins zur Dame
 
 //Es fehlt noch:
-//Trasformation eines Spielsteins zur Dame mit entsprechenden Attributen
+//Dame laufen
+//Dame fangen
 //Tests Tests Tests....
 
 constexpr int sz = 50;									//Feld Länge und Breite; vorübergehend global
@@ -27,6 +29,12 @@ Point get_point(int x, int y) {							//Ermittelt Koordinaten für Spielfeld
 	Point res{ x - x % sz,y - y % sz };
 	return res;
 }
+bool operator==(const Line_style& a, const Line_style& b) {
+	int x = a.style();
+	int y = b.style();
+	if (x == y)return true;
+	return false;
+}
 bool operator==(const Graph_lib::Color& a, const Graph_lib::Color& b) {				//Vergleicht Farben
 	if (a.as_int() == b.as_int())return true;
 	return false;
@@ -39,9 +47,11 @@ bool operator!=(const Graph_lib::Color& a, const Graph_lib::Color& b) {				//Ver
 //Fenster Klasse; ist noch ein ziemliches Chaos...
 class My_window : public Window {
 
+	const Line_style king = Line_style(Line_style::dash, 8);		//Der Stil einer Dame
+
 	const Color c_player1 = Color::red;
 	const Color c_player2 = Color::yellow;
-	Color c_turn = c_player1;								//Der Spieler der grade dran ist
+	Color c_turn = c_player1;										//Der Spieler der grade dran ist
 
 	Graph_lib::Circle* curr_stone = nullptr;
 
@@ -82,6 +92,7 @@ public:
 		for (int x = 0; x < 8; x++) {					//Steine
 			for (int y = 0; y < 8; y++) {
 				if ((y + x) % 2 == 0)stones.push_back(new Graph_lib::Circle{ {ls + x * sz + ca,us + y * sz + ca},ra });
+				stones[stones.size() - 1].set_color(Color::white);
 				attach(stones[stones.size() - 1]);
 				if (y == 1)y = 5;
 			}
@@ -172,6 +183,15 @@ private:
 			else stones[i].set_fill_color(c_player1);
 		}
 	}
+	void make_king(Graph_lib::Circle* c) {					//Spielstein wird zur Dame wenn er das gegenüberliegende Ende erreicht
+		int y = c->center().y - ca;
+		if (c->fill_color() == c_player1 && y == us)c->set_style(king);
+		if (c->fill_color() == c_player2 && y == us + sz * 7)c->set_style(king);
+	}
+	bool is_king(Graph_lib::Circle* c) {					//Ist der Speilstein eine Dame?
+		if (c->style() == Line_style(king))return true;
+		return false;
+	}
 
 	static void cb_next(Address, Address addr) { static_cast<My_window*>(addr)->next(); }		//Sogenannte Call Back Funktionen für Knöpfe, callen die eigentlichen Funktionen für die Knöpfe
 	static void cb_quit(Address, Address addr) { reference_to<My_window>(addr).quit(); }		//Ist die Stroustrup Variante, macht auch nur 		return *static_cast<W*>(pw);
@@ -199,12 +219,12 @@ private:
 			}
 		}
 		else {
-			if (!tile_empty(p) && stone_selected /*&& !must_attack({ temp_x - ca, temp_y - ca })*/) {				//Spielstein abwählen, auch bei Steinen die angreifen müssen
-				curr_stone->set_color(Color::black);
+			if (!tile_empty(p) && stone_selected /*&& !must_attack({ temp_x - ca, temp_y - ca })*/) {		//Spielstein abwählen, auch bei Steinen die angreifen müssen
+				curr_stone->set_color(Color::white);
 				curr_stone = get_stone(p);
 				Color c_curr = curr_stone->fill_color();
 				if (c_curr == c_turn) {
-					curr_stone->set_color(Color::black);
+					curr_stone->set_color(Color::white);
 					stone_selected = false;
 				}
 			}
@@ -215,7 +235,8 @@ private:
 
 			if (c_turn == c_player1 && p.y < pp.y && abs(diff.x) <= sz + ca && abs(diff.y) <= sz + ca && diff.y + ca != 0) {					//Bewegung rot
 				curr_stone->move(diff.x + ca, diff.y + ca);
-				curr_stone->set_color(Color::black);
+				curr_stone->set_color(Color::white);
+				make_king(curr_stone);
 				curr_stone = nullptr;
 				stone_selected = false;
 				c_turn = c_player2;
@@ -224,7 +245,8 @@ private:
 
 			if (c_turn == c_player2 && p.y > pp.y && abs(diff.x) <= sz + ca && abs(diff.y) <= sz - ca) {					//Bewegung gelb
 				curr_stone->move(diff.x + ca, diff.y + ca);
-				curr_stone->set_color(Color::black);
+				curr_stone->set_color(Color::white);
+				make_king(curr_stone);
 				curr_stone = nullptr;
 				stone_selected = false;
 				c_turn = c_player1;
@@ -237,10 +259,10 @@ private:
 			Point lost_stone;																	//Position vom Stein der gefangen wird														
 
 
-			for (auto k : possible_moves)if (p == k) {											//Mann muss fangen wenn der gewählte Stein fangen kann
+			for (auto& k : possible_moves)if (p == k) {											//Mann muss fangen wenn der gewählte Stein fangen kann
 
 				curr_stone->move((k.x + ca) - temp_x, (k.y + ca) - temp_y);
-
+				make_king(curr_stone);
 				if (temp_x > p.x && temp_y > p.y) lost_stone = { temp_x - sz,temp_y - sz };
 				if (temp_x < p.x && temp_y < p.y) lost_stone = { temp_x + sz,temp_y + sz };
 				if (temp_x < p.x && temp_y > p.y) lost_stone = { temp_x + sz,temp_y - sz };
@@ -260,7 +282,7 @@ private:
 				temp_y = curr_stone->center().y - ca;
 
 				if (!must_attack({ temp_x, temp_y })) {											//Man muss fangen solange man kann
-					curr_stone->set_color(Color::black);
+					curr_stone->set_color(Color::white);
 					curr_stone = nullptr;
 					stone_selected = false;
 					if (c_turn == c_player1) {
@@ -274,7 +296,8 @@ private:
 				}
 			}
 		}
-		//Transformation Dame
+
+
 		//Bewegen Dame
 		//Fangen Dame
 
