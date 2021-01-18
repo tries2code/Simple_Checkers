@@ -112,7 +112,10 @@ namespace Graph_lib {
 			v.shrink_to_fit();
 			owned.shrink_to_fit();
 		}
-
+		void clear() {		//auch selbst gebastelt, für reset_game() im Dame Spiel
+			v.clear();
+			owned.clear();
+		}
 		T& operator[](int i) { return *v[i]; }
 		const T& operator[](int i) const { return *v[i]; }
 		int size() const { return v.size(); }

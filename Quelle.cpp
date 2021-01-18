@@ -3,43 +3,27 @@
 #include <FL/fl_ask.H>
 #undef vector
 
-
-//Button unter schwarzen Felder eingef�gt, die geben Position wieder
-//Spielsteine richtig angeordnet
-//Spielsteine k�nnen ausgew�hlt und manipulirt werden 
-//tile_pressed ist f�r die Spielmechanik, zurzeit im Aufbau
-//Group Klasse mit ls und us ersetzt
-
-
 //Staus Spielmechanik:
-//Spieler 1 und 2 k�nnen nur abwechselnd spielen
-//Spielsteine k�nnen nicht r�ckw�rts gehen
-//Spielsteine k�nnen nur ein Feld weit laufen
-//oben genanntes kann nat�rlich auf Grund von bisher nicht gefundenen Bugs gelogen sein
+//Spieler 1 und 2 können nur abwechselnd spielen
+//Spielsteine können nicht rückwärts gehen
+//Spielsteine können nur ein Feld weit laufen
 //Mechanik zum gegenerische Steine fangen
-//Mechanik f�r Multikills
+//Mechanik für Multikills
+//Wenn einer gewonnen hat kann man von vorne anfangen oder beenden
 
 //Es fehlt noch:
 //Trasformation eines Spielsteins zur Dame mit entsprechenden Attributen
 //Tests Tests Tests....
 
-
-
-constexpr int sz = 50;									//Feld L�nge und Breite; vor�bergehend global
-constexpr int ca = sz / 2;								//Anpassung f�r Kreise, da die sonst oben links auf einem Feld stehen; vor�bergehend global
-constexpr int ra = 20;									//Radius der Spielsteine; vor�bergehend global
+constexpr int sz = 50;									//Feld Länge und Breite; vorübergehend global
+constexpr int ca = sz / 2;								//Anpassung für Kreise, da die sonst oben links auf einem Feld stehen; vorübergehend global
+constexpr int ra = 20;									//Radius der Spielsteine; vorübergehend global
 
 constexpr int ls = 100;									//Linker Abstand zum Bildschirmrand
 constexpr int us = 100;									//Oberer Absatnd zum Bilschirmrand
 
-const Color c_player1 = Color::red;
-const Color c_player2 = Color::yellow;
-Color c_turn = c_player1;								//Der Spieler der grade dran ist
-
-Graph_lib::Circle* curr_stone = nullptr;
-
 //Helfer Funktionen
-Point get_point(int x, int y) {							//Ermittelt Koordinaten f�r Spielfeld
+Point get_point(int x, int y) {							//Ermittelt Koordinaten für Spielfeld
 	Point res{ x - x % sz,y - y % sz };
 	return res;
 }
@@ -55,19 +39,25 @@ bool operator!=(const Graph_lib::Color& a, const Graph_lib::Color& b) {				//Ver
 //Fenster Klasse; ist noch ein ziemliches Chaos...
 class My_window : public Window {
 
+	const Color c_player1 = Color::red;
+	const Color c_player2 = Color::yellow;
+	Color c_turn = c_player1;								//Der Spieler der grade dran ist
+
+	Graph_lib::Circle* curr_stone = nullptr;
+
+	char countRed = 8;
+	char countYellow = 8;
+
 	bool button_pushed;
-	bool stone_selected;								//Wurde ein Stein ausgew�hlt?
+	bool stone_selected;								//Wurde ein Stein ausgewählt?
 	Button next_button;
 	Button quit_button;
 
-	int countRed = 8;
-	int countYellow = 8;
+	Out_box current_turn;								//Sagt einem wer grad dran ist, ja, ist hässlich, kann man überarbeiten
 
-	Out_box current_turn;								//Sagt einem wer grad dran ist, ja, ist h�sslich, kann man �berarbeiten
-
-	Vector_ref<Button>field_buttons;					//F�r die Kn�ppe unter den schwarzen Feldern
-	Vector_ref< Graph_lib::Rectangle>checkers;			//F�r die Felder
-	Vector_ref< Graph_lib::Circle>stones;				//F�r die Spielsteine, sind nur ausgemalte Kreise
+	Vector_ref<Button>field_buttons;					//Für die Knöppe unter den schwarzen Feldern
+	Vector_ref< Graph_lib::Rectangle>checkers;			//Für die Felder
+	Vector_ref< Graph_lib::Circle>stones;				//Für die Spielsteine, sind nur ausgemalte Kreise
 
 public:
 	My_window(Point xy, int w, int h, const string& title) :Window(w, h, title),
@@ -76,7 +66,7 @@ public:
 		quit_button(Point(x_max() - 70, 30), 70, 20, "Quit", cb_quit),
 		current_turn(Point{ x_max() - 350, 100 }, 100, 30, "Current Player: ")
 	{
-		for (int x = 0; x < 8; x++) {					//Kn�ppe unter den Feldern
+		for (int x = 0; x < 8; x++) {					//Knöppe unter den Feldern
 			for (int y = 0; y < 8; y++) {
 				if ((y + x) % 2 == 0)field_buttons.push_back(new Button{ {ls + x * sz,us + y * sz},sz,sz ," ",cb_tile_pressed });
 				attach(field_buttons[field_buttons.size() - 1]);
@@ -96,17 +86,16 @@ public:
 				if (y == 1)y = 5;
 			}
 		}
-		for (int i = 0; i < stones.size(); i++) {		//Farbe der Steine, die Kondition if ((y + x) % 2 == 0) im oberen Steine-Loop hat bei der Einf�rbung irgendwie zu Schwulit�ten gef�hrt...keine Ahnung warum
+		for (int i = 0; i < stones.size(); i++) {		//Farbe der Steine, die Kondition if ((y + x) % 2 == 0) im oberen Steine-Loop hat bei der Einfärbung irgendwie zu Schwulitäten geführt...keine Ahnung warum
 			if (i % 2 == 0)stones[i].set_fill_color(c_player2);
 			else stones[i].set_fill_color(c_player1);
 		}
 		attach(next_button);
 		attach(quit_button);
 		attach(current_turn);
-		current_turn.put("Red");						//rot f�ngt an
+		current_turn.put("Red");						//rot fängt an
 	}
 	void wait_for_button() {
-
 		while (!button_pushed) Fl::wait();
 		button_pushed = false;
 		Fl::redraw();
@@ -158,16 +147,41 @@ private:
 		}
 		return nullptr;
 	}
+	void restart_game() {
 
-	static void cb_next(Address, Address addr) { static_cast<My_window*>(addr)->next(); }		//Sogenannte Call Back Funktionen f�r Kn�pfe, callen die eigentlichen Funktionen f�r die Kn�pfe
+		c_turn = c_player1;
+		current_turn.put("Red");
+		curr_stone = nullptr;
+		stone_selected = false;
+		countRed = 8;
+		countYellow = 8;
+
+		for (int i = 0; i < stones.size(); i++) {
+			detach(stones[i]);
+		}
+		stones.clear();								//Beim Anwenden von Vector_ref::erase() bleibt ein Stein übrig, keine Ahnung warum...
+		for (int x = 0; x < 8; x++) {
+			for (int y = 0; y < 8; y++) {
+				if ((y + x) % 2 == 0)stones.push_back(new Graph_lib::Circle{ {ls + x * sz + ca,us + y * sz + ca},ra });
+				attach(stones[stones.size() - 1]);
+				if (y == 1)y = 5;
+			}
+		}
+		for (int i = 0; i < stones.size(); i++) {
+			if (i % 2 == 0)stones[i].set_fill_color(c_player2);
+			else stones[i].set_fill_color(c_player1);
+		}
+	}
+
+	static void cb_next(Address, Address addr) { static_cast<My_window*>(addr)->next(); }		//Sogenannte Call Back Funktionen für Knöpfe, callen die eigentlichen Funktionen für die Knöpfe
 	static void cb_quit(Address, Address addr) { reference_to<My_window>(addr).quit(); }		//Ist die Stroustrup Variante, macht auch nur 		return *static_cast<W*>(pw);
 	static void cb_tile_pressed(Address, Address addr) { reference_to<My_window>(addr).tile_pressed(); }
 
-	void next() { button_pushed = true; }								//L�st FL::redraw() (in void wait_for_button()) aus.
+	void next() { button_pushed = true; }								//Löst FL::redraw() (in void wait_for_button()) aus.
 	void quit() { hide(); button_pushed = true; }
 
 	void  tile_pressed() {
-		Point p = get_point(Fl::event_x(), Fl::event_y());				//p=Koordinaten des aktuell gedr�cketen Feldes
+		Point p = get_point(Fl::event_x(), Fl::event_y());				//p=Koordinaten des aktuell gedrücketen Feldes
 
 		int temp_x = 0;
 		int temp_y = 0;
@@ -176,34 +190,25 @@ private:
 			temp_y = curr_stone->center().y;
 		}
 
-
-
-
-		if (!tile_empty(p) && !stone_selected) {						//Spielstein ausw�hlen
+		if (!tile_empty(p) && !stone_selected) {						//Spielstein auswählen
 			curr_stone = get_stone(p);
 			Color c_curr = curr_stone->fill_color();
 			if (c_curr == c_turn) {
 				curr_stone->set_color(Color::cyan);
 				stone_selected = true;
 			}
-			
 		}
 		else {
-			if (!tile_empty(p) && stone_selected && !must_attack({ temp_x - ca, temp_y - ca })) {						//Spielstein abwählen
+			if (!tile_empty(p) && stone_selected /*&& !must_attack({ temp_x - ca, temp_y - ca })*/) {				//Spielstein abwählen, auch bei Steinen die angreifen müssen
 				curr_stone->set_color(Color::black);
-				curr_stone = get_stone(p);							
+				curr_stone = get_stone(p);
 				Color c_curr = curr_stone->fill_color();
 				if (c_curr == c_turn) {
 					curr_stone->set_color(Color::black);
 					stone_selected = false;
 				}
-
 			}
 		}
-
-
-
-
 		if (tile_empty(p) && stone_selected && !must_attack({ temp_x - ca, temp_y - ca })) {
 			Point pp = curr_stone->center();
 			Point diff = { p.x - pp.x,p.y - pp.y };
@@ -232,7 +237,7 @@ private:
 			Point lost_stone;																	//Position vom Stein der gefangen wird														
 
 
-			for (auto k : possible_moves)if (p == k) {											//Mann muss fangen wenn der gew�hlte Stein fangen kann
+			for (auto k : possible_moves)if (p == k) {											//Mann muss fangen wenn der gewählte Stein fangen kann
 
 				curr_stone->move((k.x + ca) - temp_x, (k.y + ca) - temp_y);
 
@@ -246,12 +251,8 @@ private:
 					if (stones[i].center() == lost_stone) {
 						detach(stones[i]);
 						stones.erase(i);
-						if (c_turn == c_player1) {
-							countRed = countRed - 1;
-						}
-						if (c_turn == c_player2) {
-							countYellow = countYellow - 1;
-						}
+						if (c_turn == c_player1)countRed--;
+						if (c_turn == c_player2)countYellow--;
 					}
 				}
 
@@ -277,30 +278,35 @@ private:
 		//Bewegen Dame
 		//Fangen Dame
 
-		cout << p.x << " " << p.y << endl;																//Ist nur f�rs debuggen
-		//Point test;																				//Ist nur f�rs debuggen
-		//if (curr_stone)test = { curr_stone->center().x - ca,curr_stone->center().y - ca };		//Ist nur f�rs debuggen
-		//cout << "hostile present" << hostile_present(p) << endl;									//Ist nur f�rs debuggen
-		//if (curr_stone)cout << "must attack" << must_attack(test) << endl;						//Ist nur f�rs debuggen
+		cout << p.x << " " << p.y << endl;																//Ist nur fürs debuggen
+		//Point test;																				//Ist nur fürs debuggen
+		//if (curr_stone)test = { curr_stone->center().x - ca,curr_stone->center().y - ca };		//Ist nur fürs debuggen
+		//cout << "hostile present" << hostile_present(p) << endl;									//Ist nur fürs debuggen
+		//if (curr_stone)cout << "must attack" << must_attack(test) << endl;						//Ist nur fürs debuggen
 
-		if (countRed == 0) {					// Spielende verk�nden. Switchanweisung sind noch Bl�dsinn aber irgendwas muss drin stehen.
+		if (countRed == 0) {					// Spielende verkünden. Switchanweisung sind noch Blödsinn aber irgendwas muss drin stehen.
 			switch (fl_choice("Gelb hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
-			case 0: countRed = 8; // Spielbrett neu aufbauen
-			case 1: countRed = 0; // No (default)
+			case 0:
+				restart_game();						// Spielbrett neu aufbauen
+				break;
+			case 1:
+				quit();
+				break;
 			}
-
 		}
 
 		if (countYellow == 0) {
 			switch (fl_choice("Rot hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
-			case 0:  countRed = 8;// Spielbrett neu aufbauen
-			case 1:  countRed = 0;// No (default)
+			case 0:
+				restart_game();						// Spielbrett neu aufbauen
+				break;
+			case 1:
+				quit();
+				break;
 			}
-
 		}
-
-
 		Fl::redraw();
+
 	}
 };
 
@@ -310,5 +316,7 @@ int main() {
 	My_window win{ {100,100},1000,800,"Schach oder Dame" };						//Fenster zum Debuggen verkleinert um das Konsolenfenster zu sehen
 
 
+
 	win.wait_for_button();
+
 }
