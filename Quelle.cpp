@@ -24,11 +24,11 @@
 
 
 //Bekannte Bugs:
-//					-Beim verändern der Fenstergröße spacken die Knöppe ab. Werde vielleicht das Fenster irgendwie fixieren
 //					-sz muss durch 50 teilbar sein damit alles funktioniert (sprich 50 oder 100)
 
 
-
+constexpr int screen_x = 1000;
+constexpr int screen_y = 800;
 
 constexpr int sz = 50;									//Feld Länge und Breite; vorübergehend global
 constexpr int ca = sz / 2;								//Anpassung für Kreise, da die sonst oben links auf einem Feld stehen; vorübergehend global
@@ -90,6 +90,7 @@ public:
 		for (int x = 0; x < 8; x++) {					//Knöppe unter den Feldern
 			for (int y = 0; y < 8; y++) {
 				if ((y + x) % 2 == 0)field_buttons.push_back(new Button{ {ls + x * sz,us + y * sz},sz,sz ," ",cb_tile_pressed });
+
 				attach(field_buttons[field_buttons.size() - 1]);
 			}
 		}
@@ -116,6 +117,7 @@ public:
 		attach(quit_button);
 		attach(current_turn);
 		current_turn.put("Red");						//rot fängt an
+		size_range(screen_x, screen_y, screen_x, screen_y);
 	}
 	void wait_for_button() {
 		while (!button_pushed) Fl::wait();
@@ -471,10 +473,7 @@ private:
 
 int main() {
 
-	//My_window win{ {100,100},x_max(),y_max(),"Schach oder Dame" };
-	My_window win{ {100,100},1000,800,"Schach oder Dame" };						//Fenster zum Debuggen verkleinert um das Konsolenfenster zu sehen
-
-
+	My_window win{ {100,100},screen_x,screen_y,"Schach oder Dame" };						//Fenster zum Debuggen verkleinert um das Konsolenfenster zu sehen
 
 	win.wait_for_button();
 
