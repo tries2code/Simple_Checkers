@@ -400,6 +400,8 @@ private:
 						if (stones[x].center() == lost_stones[j]) {
 							detach(stones[x]);
 							stones.erase(x);
+							if (c_turn == c_player1)countRed--;
+							if (c_turn == c_player2)countYellow--;
 						}
 					}
 				}
