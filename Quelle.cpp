@@ -11,11 +11,24 @@
 //Mechanik für Multikills
 //Wenn einer gewonnen hat kann man von vorne anfangen oder beenden
 //Trasformation eines Spielsteins zur Dame
-
-//Es fehlt noch:
 //Dame laufen
 //Dame fangen
+// Die Dame kann:
+//					-Beliebig weit laufen, sofern keine zwei Gegener hintereinander im weg stehen
+//					-In einem Zug mehrere Gegener Fangen solange zwischen den Gegnern mindestens ein freies Feld ist
+//					-Einen zweiten Zug machen wenn sie beim ersten Zug mindestens einen Gegener gefangen hat und neben einem Gegner stehen beleibt
+//					-Frei entscheiden ob sie angreift oder doch woanders hinläuft
+
+//Es fehlt noch:
 //Tests Tests Tests....
+
+
+//Bekannte Bugs:
+//					-Beim verändern der Fenstergröße spacken die Knöppe ab. Werde vielleicht das Fenster irgendwie fixieren
+//					-sz muss durch 50 teilbar sein damit alles funktioniert (sprich 50 oder 100)
+
+
+
 
 constexpr int sz = 50;									//Feld Länge und Breite; vorübergehend global
 constexpr int ca = sz / 2;								//Anpassung für Kreise, da die sonst oben links auf einem Feld stehen; vorübergehend global
@@ -47,11 +60,9 @@ bool operator!=(const Graph_lib::Color& a, const Graph_lib::Color& b) {				//Ver
 //Fenster Klasse; ist noch ein ziemliches Chaos...
 class My_window : public Window {
 
-	const Line_style king = Line_style(Line_style::dash, 8);		//Der Stil einer Dame
-
 	const Color c_player1 = Color::red;
 	const Color c_player2 = Color::yellow;
-	Color c_turn = c_player1;										//Der Spieler der grade dran ist
+	Color c_turn = c_player1;								//Der Spieler der grade dran ist
 
 	Graph_lib::Circle* curr_stone = nullptr;
 
@@ -185,11 +196,11 @@ private:
 	}
 	void make_king(Graph_lib::Circle* c) {					//Spielstein wird zur Dame wenn er das gegenüberliegende Ende erreicht
 		int y = c->center().y - ca;
-		if (c->fill_color() == c_player1 && y == us)c->set_style(king);
-		if (c->fill_color() == c_player2 && y == us + sz * 7)c->set_style(king);
+		if (c->fill_color() == c_player1 && y == us)c->set_style(Line_style(Line_style::dash, 8));
+		if (c->fill_color() == c_player2 && y == us + sz * 7)c->set_style(Line_style(Line_style::dash, 8));
 	}
 	bool is_king(Graph_lib::Circle* c) {					//Ist der Speilstein eine Dame?
-		if (c->style() == Line_style(king))return true;
+		if (c->style() == Line_style(Line_style::dash, 8))return true;
 		return false;
 	}
 
@@ -229,7 +240,7 @@ private:
 				}
 			}
 		}
-		if (tile_empty(p) && stone_selected && !must_attack({ temp_x - ca, temp_y - ca })) {
+		if (tile_empty(p) && stone_selected && !must_attack({ temp_x - ca, temp_y - ca }) && !is_king(curr_stone)) {
 			Point pp = curr_stone->center();
 			Point diff = { p.x - pp.x,p.y - pp.y };
 
@@ -253,11 +264,10 @@ private:
 				current_turn.put("Red");
 			}
 		}
-		if (tile_empty(p) && stone_selected && must_attack({ temp_x - ca, temp_y - ca })) {		//Fangen (auch Multikill)
+		if (tile_empty(p) && stone_selected && must_attack({ temp_x - ca, temp_y - ca }) && !is_king(curr_stone)) {		//Fangen (auch Multikill)
 
 			vector<Point> possible_moves = strike();
 			Point lost_stone;																	//Position vom Stein der gefangen wird														
-
 
 			for (auto& k : possible_moves)if (p == k) {											//Mann muss fangen wenn der gewählte Stein fangen kann
 
@@ -267,7 +277,6 @@ private:
 				if (temp_x < p.x && temp_y < p.y) lost_stone = { temp_x + sz,temp_y + sz };
 				if (temp_x < p.x && temp_y > p.y) lost_stone = { temp_x + sz,temp_y - sz };
 				if (temp_x > p.x && temp_y < p.y) lost_stone = { temp_x - sz,temp_y + sz };
-
 
 				for (int i = 0; i < stones.size(); i++) {
 					if (stones[i].center() == lost_stone) {
@@ -296,10 +305,135 @@ private:
 				}
 			}
 		}
+		if (tile_empty(p) && stone_selected && is_king(curr_stone)) {					//Dame bewegen und fangen
+
+			temp_x = curr_stone->center().x - ca;
+			temp_y = curr_stone->center().y - ca;
+			Point start{ temp_x,temp_y };
+			vector<Point>moves;
+			vector<Point>lost_stones;
+			bool hostile_1 = false;
+			bool hostile_2 = false;
+
+			if (temp_x > p.x && temp_y > p.y && !hostile_2) {					// von unten rechts nach oben links
+				while (temp_x != p.x) {
+					temp_x -= sz;
+					temp_y -= sz;
+					if (temp_x < ls || temp_y < us)break;
+					if (tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x,temp_y });
+					if (hostile_present({ temp_x, temp_y })) {
+						hostile_1 = true;
+						if (hostile_present({ temp_x - sz, temp_y - sz }))hostile_2 = true;
+						else if (tile_empty({ temp_x - sz, temp_y - sz })) {
+							lost_stones.push_back({ temp_x + ca,temp_y + ca });
+							hostile_1 = false;
+						}
+					}
+				}
+				if (temp_x >= ls && temp_y >= us && tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x, temp_x });
+			}
+			else if (temp_x < p.x && temp_y < p.y && !hostile_2) {					// von oben links nach unten rechts
+				while (temp_x != p.x) {
+					temp_x += sz;
+					temp_y += sz;
+					if (temp_x > ls + sz * 7 || temp_y > us + sz * 7)break;
+					if (tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x,temp_y });
+					if (hostile_present({ temp_x, temp_y })) {
+						hostile_1 = true;
+						if (hostile_present({ temp_x + sz, temp_y + sz }))hostile_2 = true;
+						else if (tile_empty({ temp_x + sz, temp_y + sz })) {
+							lost_stones.push_back({ temp_x + ca,temp_y + ca });
+							hostile_1 = false;
+						}
+
+					}
+				}
+				if (temp_x <= ls + sz * 7 && temp_y <= us + sz * 7 && tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x, temp_x });
+			}
+			else if (temp_x < p.x && temp_y > p.y && !hostile_2) {					// von unten links nach oben rechts
+				while (temp_x != p.x) {
+					temp_x += sz;
+					temp_y -= sz;
+					if (temp_x > ls + sz * 7 || temp_y < us)break;
+					if (tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x,temp_y });
+					if (hostile_present({ temp_x, temp_y })) {
+						hostile_1 = true;
+						if (hostile_present({ temp_x + sz, temp_y - sz }))hostile_2 = true;
+						else if (tile_empty({ temp_x + sz, temp_y - sz })) {
+							lost_stones.push_back({ temp_x + ca,temp_y + ca });
+							hostile_1 = false;
+						}
+
+					}
+				}
+				if (temp_x <= ls + sz * 7 && temp_y >= us && tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x, temp_x });
+			}
+			else if (temp_x > p.x && temp_y < p.y && !hostile_2) {					// von oben rechts nach unten links
+				while (temp_x != p.x) {
+					temp_x -= sz;
+					temp_y += sz;
+					if (temp_x < ls || temp_y > us + sz * 7)break;
+
+					if (tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x,temp_y });
+					if (hostile_present({ temp_x, temp_y })) {
+						hostile_1 = true;
+						if (hostile_present({ temp_x - sz, temp_y + sz }))hostile_2 = true;
+						else if (tile_empty({ temp_x - sz, temp_y + sz })) {
+							lost_stones.push_back({ temp_x + ca,temp_y + ca });
+							hostile_1 = false;
+						}
+					}
+				}
+				if (temp_x >= ls && temp_y <= us + sz * 7 && tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x, temp_x });
+			}
+			if (!hostile_2) {														//Dame kann nicht über zwei nebeneinander stehende Gegener laufen
+
+				for (int i = 0; i < moves.size(); i++) {
+					if (p == moves[i]) {
+						curr_stone->move((p.x - start.x), (p.y - start.y));
+						break;
+					}
+				}
+
+				for (int x = 0; x < stones.size(); x++) {
+					for (int j = 0; j < lost_stones.size(); j++) {
+						if (stones[x].center() == lost_stones[j]) {
+							detach(stones[x]);
+							stones.erase(x);
+						}
+					}
+				}
+				if (!must_attack({ temp_x, temp_y })) {											//Dame kann weiter fangen
+					curr_stone->set_color(Color::white);
+					curr_stone = nullptr;
+					stone_selected = false;
+					if (c_turn == c_player1) {
+						c_turn = c_player2;
+						current_turn.put("Yellow");
+					}
+					else if (c_turn == c_player2) {
+						c_turn = c_player1;
+						current_turn.put("Red");
+					}
+				}
+				else if (lost_stones.size() == 0 && must_attack({ temp_x, temp_y })) {				//es geht nur weiter wenn die Dame beim ersten Zug etwas gefangen hat
+					curr_stone->set_color(Color::white);
+					curr_stone = nullptr;
+					stone_selected = false;
+					if (c_turn == c_player1) {
+						c_turn = c_player2;
+						current_turn.put("Yellow");
+					}
+					else if (c_turn == c_player2) {
+						c_turn = c_player1;
+						current_turn.put("Red");
+					}
+				}
+			}
+
+		}
 
 
-		//Bewegen Dame
-		//Fangen Dame
 
 		cout << p.x << " " << p.y << endl;																//Ist nur fürs debuggen
 		//Point test;																				//Ist nur fürs debuggen
