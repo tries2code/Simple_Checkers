@@ -1,0 +1,20 @@
+The red color pieces moves first. Each player takes their turn by moving a piece. 
+
+Pieces are always moved diagonally and can be moved in the following ways:
+-Diagonally in the forward direction (towards the opponent) to the next dark square.
+-If there is one of the opponent's pieces next to a piece and an empty space on the other side, you jump your opponent and their piece will be removed. 
+-You can do multiple jumps if they are lined up in the forward direction. 
+
+*** note: if you have a jump, you have no choice but to take it.
+
+
+King Pieces:
+
+The last row is called the king row. If you get a piece across the board to the opponent's king row, that piece becomes a king. 
+It get's a dashed outline. King pieces can move in both directions, forward and backward. 
+Once a piece is kinged, the player must wait until the next turn to jump out of the king row, 
+unless it is sitting next to a hostile and attackable piece... 
+
+
+Winning the Game:
+You win the game when the opponent has no more pieces. If neither player can move...well you might as well just restart the gamg in that case.#

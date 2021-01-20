@@ -1,6 +1,7 @@
 ﻿#include"Graph.h"
-#include"Simple_window.h"
+//#include"Simple_window.h"
 #include <FL/fl_ask.H>
+#include"Rules_window.h"
 #undef vector
 
 //Staus Spielmechanik:
@@ -25,17 +26,18 @@
 
 //Bekannte Bugs:
 //					-sz muss durch 50 teilbar sein damit alles funktioniert (sprich 50 oder 100)
+//					-Wenn eine Stein zur Dame transformiert und angreifen kann ist er nach wie vor am Zug. Feature?
 
 
-constexpr int screen_x = 1000;
-constexpr int screen_y = 800;
+constexpr int screen_x = 1200;
+constexpr int screen_y = 1000;
 
-constexpr int sz = 50;									//Feld Länge und Breite; vorübergehend global
+constexpr int sz = 100;									//Feld Länge und Breite; vorübergehend global
 constexpr int ca = sz / 2;								//Anpassung für Kreise, da die sonst oben links auf einem Feld stehen; vorübergehend global
-constexpr int ra = 20;									//Radius der Spielsteine; vorübergehend global
+constexpr int ra = 40;									//Radius der Spielsteine; vorübergehend global
 
 constexpr int ls = 100;									//Linker Abstand zum Bildschirmrand
-constexpr int us = 100;									//Oberer Absatnd zum Bilschirmrand
+constexpr int us = 0;									//Oberer Absatnd zum Bilschirmrand
 
 //Helfer Funktionen
 Point get_point(int x, int y) {							//Ermittelt Koordinaten für Spielfeld
@@ -57,8 +59,13 @@ bool operator!=(const Graph_lib::Color& a, const Graph_lib::Color& b) {				//Ver
 	return false;
 }
 
+
+
 //Fenster Klasse; ist noch ein ziemliches Chaos...
 class My_window : public Window {
+
+	const Line_style king_style = Line_style(Line_style::dash, 8);	//Der Stil einer Dame
+	const Line_style piece_style = Line_style(Line_style::solid, 2);	//Der einfache Stil
 
 	const Color c_player1 = Color::red;
 	const Color c_player2 = Color::yellow;
@@ -71,7 +78,9 @@ class My_window : public Window {
 
 	bool button_pushed;
 	bool stone_selected;								//Wurde ein Stein ausgewählt?
-	Button next_button;
+
+	Button rules_button;
+	Button restart_button;
 	Button quit_button;
 
 	Out_box current_turn;								//Sagt einem wer grad dran ist, ja, ist hässlich, kann man überarbeiten
@@ -83,9 +92,10 @@ class My_window : public Window {
 public:
 	My_window(Point xy, int w, int h, const string& title) :Window(w, h, title),
 		button_pushed(false), stone_selected(false),
-		next_button(Point(x_max() - 70, 0), 70, 20, "Next", cb_next),
-		quit_button(Point(x_max() - 70, 30), 70, 20, "Quit", cb_quit),
-		current_turn(Point{ x_max() - 350, 100 }, 100, 30, "Current Player: ")
+		rules_button(Point(x_max() - 70, 0), 70, 20, "Rules", cb_rules),
+		restart_button(Point(x_max() - 70, 30), 70, 20, "Restart", cb_restart),
+		quit_button(Point(x_max() - 70, 60), 70, 20, "Quit", cb_quit),
+		current_turn(Point{ x_max() - 150, 100 }, 100, 30, "Current Player: ")
 	{
 		for (int x = 0; x < 8; x++) {					//Knöppe unter den Feldern
 			for (int y = 0; y < 8; y++) {
@@ -105,6 +115,7 @@ public:
 			for (int y = 0; y < 8; y++) {
 				if ((y + x) % 2 == 0)stones.push_back(new Graph_lib::Circle{ {ls + x * sz + ca,us + y * sz + ca},ra });
 				stones[stones.size() - 1].set_color(Color::white);
+				stones[stones.size() - 1].set_style(piece_style);
 				attach(stones[stones.size() - 1]);
 				if (y == 1)y = 5;
 			}
@@ -113,7 +124,8 @@ public:
 			if (i % 2 == 0)stones[i].set_fill_color(c_player2);
 			else stones[i].set_fill_color(c_player1);
 		}
-		attach(next_button);
+		attach(rules_button);
+		attach(restart_button);
 		attach(quit_button);
 		attach(current_turn);
 		current_turn.put("Red");						//rot fängt an
@@ -124,7 +136,6 @@ public:
 		button_pushed = false;
 		Fl::redraw();
 	}
-
 private:
 	bool tile_empty(Point p)const {
 		Point curr{ p.x + ca,p.y + ca };
@@ -150,8 +161,10 @@ private:
 		return false;
 	}
 	vector<Point> strike() {
+
 		Point stone{ curr_stone->center().x - ca, curr_stone->center().y - ca };
 		vector<Point> res;
+
 		if (hostile_present({ stone.x + sz,stone.y + sz }) && tile_empty({ stone.x + sz * 2,stone.y + sz * 2 }))res.push_back({ stone.x + sz * 2,stone.y + sz * 2 });
 		if (hostile_present({ stone.x - sz,stone.y - sz }) && tile_empty({ stone.x - sz * 2,stone.y - sz * 2 }))res.push_back({ stone.x - sz * 2,stone.y - sz * 2 });
 		if (hostile_present({ stone.x + sz,stone.y - sz }) && tile_empty({ stone.x + sz * 2,stone.y - sz * 2 }))res.push_back({ stone.x + sz * 2,stone.y - sz * 2 });
@@ -160,8 +173,10 @@ private:
 		return res;
 	}
 	Graph_lib::Circle* get_stone(Point& p) {				//Ermittelt Spielstein
+
 		Graph_lib::Circle* res;
 		Point curr;
+
 		for (int i = 0; i < stones.size(); i++) {
 			curr = stones[i].center();
 			if (curr == Point{ p.x + ca,p.y + ca }) {
@@ -171,6 +186,22 @@ private:
 		}
 		return nullptr;
 	}
+	void make_king(Graph_lib::Circle* c) {					//Spielstein wird zur Dame wenn er das gegenüberliegende Ende erreicht
+		int y = c->center().y - ca;
+		if (c->fill_color() == c_player1 && y == us)c->set_style(king_style);
+		if (c->fill_color() == c_player2 && y == us + sz * 7)c->set_style(king_style);
+	}
+	bool is_king(Graph_lib::Circle* c) {					//Ist der Speilstein eine Dame?
+		if (c->style() == Line_style(Line_style::dash, 8))return true;
+		return false;
+	}
+
+	static void cb_rules(Address, Address addr) { static_cast<My_window*>(addr)->rules(); }		//Sogenannte Call Back Funktionen für Knöpfe, callen die eigentlichen Funktionen für die Knöpfe
+	static void cb_restart(Address, Address addr) { static_cast<My_window*>(addr)->restart_game(); }
+	static void cb_quit(Address, Address addr) { reference_to<My_window>(addr).quit(); }		//Ist die Stroustrup Variante, macht auch nur 		return *static_cast<W*>(pw);
+	static void cb_tile_pressed(Address, Address addr) { reference_to<My_window>(addr).tile_pressed(); }
+
+	void rules() { Rules_window* rls = new Rules_window({ 100,100 }, screen_x, screen_y, "Rules"); }
 	void restart_game() {
 
 		c_turn = c_player1;
@@ -195,25 +226,12 @@ private:
 			if (i % 2 == 0)stones[i].set_fill_color(c_player2);
 			else stones[i].set_fill_color(c_player1);
 		}
+		Fl::redraw();
 	}
-	void make_king(Graph_lib::Circle* c) {					//Spielstein wird zur Dame wenn er das gegenüberliegende Ende erreicht
-		int y = c->center().y - ca;
-		if (c->fill_color() == c_player1 && y == us)c->set_style(Line_style(Line_style::dash, 8));
-		if (c->fill_color() == c_player2 && y == us + sz * 7)c->set_style(Line_style(Line_style::dash, 8));
-	}
-	bool is_king(Graph_lib::Circle* c) {					//Ist der Speilstein eine Dame?
-		if (c->style() == Line_style(Line_style::dash, 8))return true;
-		return false;
-	}
-
-	static void cb_next(Address, Address addr) { static_cast<My_window*>(addr)->next(); }		//Sogenannte Call Back Funktionen für Knöpfe, callen die eigentlichen Funktionen für die Knöpfe
-	static void cb_quit(Address, Address addr) { reference_to<My_window>(addr).quit(); }		//Ist die Stroustrup Variante, macht auch nur 		return *static_cast<W*>(pw);
-	static void cb_tile_pressed(Address, Address addr) { reference_to<My_window>(addr).tile_pressed(); }
-
-	void next() { button_pushed = true; }								//Löst FL::redraw() (in void wait_for_button()) aus.
 	void quit() { hide(); button_pushed = true; }
 
 	void  tile_pressed() {
+
 		Point p = get_point(Fl::event_x(), Fl::event_y());				//p=Koordinaten des aktuell gedrücketen Feldes
 
 		int temp_x = 0;
@@ -243,6 +261,7 @@ private:
 			}
 		}
 		if (tile_empty(p) && stone_selected && !must_attack({ temp_x - ca, temp_y - ca }) && !is_king(curr_stone)) {
+
 			Point pp = curr_stone->center();
 			Point diff = { p.x - pp.x,p.y - pp.y };
 
@@ -275,6 +294,7 @@ private:
 
 				curr_stone->move((k.x + ca) - temp_x, (k.y + ca) - temp_y);
 				make_king(curr_stone);
+
 				if (temp_x > p.x && temp_y > p.y) lost_stone = { temp_x - sz,temp_y - sz };
 				if (temp_x < p.x && temp_y < p.y) lost_stone = { temp_x + sz,temp_y + sz };
 				if (temp_x < p.x && temp_y > p.y) lost_stone = { temp_x + sz,temp_y - sz };
@@ -288,7 +308,6 @@ private:
 						if (c_turn == c_player2)countYellow--;
 					}
 				}
-
 				temp_x = curr_stone->center().x - ca;
 				temp_y = curr_stone->center().y - ca;
 
@@ -311,94 +330,59 @@ private:
 
 			temp_x = curr_stone->center().x - ca;
 			temp_y = curr_stone->center().y - ca;
-			Point start{ temp_x,temp_y };
-			vector<Point>moves;
-			vector<Point>lost_stones;
-			bool hostile_1 = false;
-			bool hostile_2 = false;
 
-			if (temp_x > p.x && temp_y > p.y && !hostile_2) {					// von unten rechts nach oben links
+			Point start{ temp_x,temp_y };
+			Point move_to;
+
+			vector<Point>lost_stones;
+
+			bool double_hostiles = false;
+
+			if (temp_x > p.x && temp_y > p.y && !double_hostiles) {					// von unten rechts nach oben links
 				while (temp_x != p.x) {
 					temp_x -= sz;
 					temp_y -= sz;
 					if (temp_x < ls || temp_y < us)break;
-					if (tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x,temp_y });
-					if (hostile_present({ temp_x, temp_y })) {
-						hostile_1 = true;
-						if (hostile_present({ temp_x - sz, temp_y - sz }))hostile_2 = true;
-						else if (tile_empty({ temp_x - sz, temp_y - sz })) {
-							lost_stones.push_back({ temp_x + ca,temp_y + ca });
-							hostile_1 = false;
-						}
-					}
+					if (hostile_present({ temp_x, temp_y }) && hostile_present({ temp_x - sz, temp_y - sz })) double_hostiles = true;
+					else if (hostile_present({ temp_x, temp_y }) && tile_empty({ temp_x - sz, temp_y - sz }))lost_stones.push_back({ temp_x + ca, temp_y + ca });
 				}
-				if (temp_x >= ls && temp_y >= us && tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x, temp_x });
+				if (temp_x >= ls && temp_y >= us && tile_empty({ temp_x,temp_y }))move_to = { temp_x,temp_y };
 			}
-			else if (temp_x < p.x && temp_y < p.y && !hostile_2) {					// von oben links nach unten rechts
+			else if (temp_x < p.x && temp_y < p.y && !double_hostiles) {					// von oben links nach unten rechts
 				while (temp_x != p.x) {
 					temp_x += sz;
 					temp_y += sz;
 					if (temp_x > ls + sz * 7 || temp_y > us + sz * 7)break;
-					if (tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x,temp_y });
-					if (hostile_present({ temp_x, temp_y })) {
-						hostile_1 = true;
-						if (hostile_present({ temp_x + sz, temp_y + sz }))hostile_2 = true;
-						else if (tile_empty({ temp_x + sz, temp_y + sz })) {
-							lost_stones.push_back({ temp_x + ca,temp_y + ca });
-							hostile_1 = false;
-						}
-
-					}
+					if (hostile_present({ temp_x, temp_y }) && hostile_present({ temp_x + sz, temp_y + sz })) double_hostiles = true;
+					else if (hostile_present({ temp_x, temp_y }) && tile_empty({ temp_x + sz, temp_y + sz }))lost_stones.push_back({ temp_x + ca,temp_y + ca });
 				}
-				if (temp_x <= ls + sz * 7 && temp_y <= us + sz * 7 && tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x, temp_x });
+				if (temp_x <= ls + sz * 7 && temp_y <= us + sz * 7 && tile_empty({ temp_x,temp_y }))move_to = { temp_x,temp_y };
 			}
-			else if (temp_x < p.x && temp_y > p.y && !hostile_2) {					// von unten links nach oben rechts
+			else if (temp_x < p.x && temp_y > p.y && !double_hostiles) {					// von unten links nach oben rechts
 				while (temp_x != p.x) {
 					temp_x += sz;
 					temp_y -= sz;
 					if (temp_x > ls + sz * 7 || temp_y < us)break;
-					if (tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x,temp_y });
-					if (hostile_present({ temp_x, temp_y })) {
-						hostile_1 = true;
-						if (hostile_present({ temp_x + sz, temp_y - sz }))hostile_2 = true;
-						else if (tile_empty({ temp_x + sz, temp_y - sz })) {
-							lost_stones.push_back({ temp_x + ca,temp_y + ca });
-							hostile_1 = false;
-						}
-
-					}
+					if (hostile_present({ temp_x, temp_y }) && hostile_present({ temp_x + sz, temp_y - sz })) double_hostiles = true;
+					else if (hostile_present({ temp_x, temp_y }) && tile_empty({ temp_x + sz, temp_y - sz }))lost_stones.push_back({ temp_x + ca,temp_y + ca });
 				}
-				if (temp_x <= ls + sz * 7 && temp_y >= us && tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x, temp_x });
+				if (temp_x <= ls + sz * 7 && temp_y >= us && tile_empty({ temp_x,temp_y }))move_to = { temp_x,temp_y };
 			}
-			else if (temp_x > p.x && temp_y < p.y && !hostile_2) {					// von oben rechts nach unten links
+			else if (temp_x > p.x && temp_y < p.y && !double_hostiles) {					// von oben rechts nach unten links
 				while (temp_x != p.x) {
 					temp_x -= sz;
 					temp_y += sz;
 					if (temp_x < ls || temp_y > us + sz * 7)break;
-
-					if (tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x,temp_y });
-					if (hostile_present({ temp_x, temp_y })) {
-						hostile_1 = true;
-						if (hostile_present({ temp_x - sz, temp_y + sz }))hostile_2 = true;
-						else if (tile_empty({ temp_x - sz, temp_y + sz })) {
-							lost_stones.push_back({ temp_x + ca,temp_y + ca });
-							hostile_1 = false;
-						}
-					}
+					if (hostile_present({ temp_x, temp_y }) && hostile_present({ temp_x - sz, temp_y + sz })) double_hostiles = true;
+					else if (hostile_present({ temp_x, temp_y }) && tile_empty({ temp_x - sz, temp_y + sz }))lost_stones.push_back({ temp_x + ca,temp_y + ca });
 				}
-				if (temp_x >= ls && temp_y <= us + sz * 7 && tile_empty({ temp_x,temp_y }))moves.push_back({ temp_x, temp_x });
+				if (temp_x >= ls && temp_y <= us + sz * 7 && tile_empty({ temp_x,temp_y }))move_to = { temp_x,temp_y };
 			}
-			if (!hostile_2) {														//Dame kann nicht über zwei nebeneinander stehende Gegener laufen
-
-				for (int i = 0; i < moves.size(); i++) {
-					if (p == moves[i]) {
-						curr_stone->move((p.x - start.x), (p.y - start.y));
-						break;
-					}
-				}
+			if (!double_hostiles) {														//Dame kann nicht über zwei nebeneinander stehende Gegener laufen
+				if (p == move_to)curr_stone->move((p.x - start.x), (p.y - start.y));
 
 				for (int x = 0; x < stones.size(); x++) {
-					for (int j = 0; j < lost_stones.size(); j++) {
+					for (unsigned int j = 0; j < lost_stones.size(); j++) {
 						if (stones[x].center() == lost_stones[j]) {
 							detach(stones[x]);
 							stones.erase(x);
@@ -436,16 +420,7 @@ private:
 			}
 
 		}
-
-
-
-		cout << p.x << " " << p.y << endl;																//Ist nur fürs debuggen
-		//Point test;																				//Ist nur fürs debuggen
-		//if (curr_stone)test = { curr_stone->center().x - ca,curr_stone->center().y - ca };		//Ist nur fürs debuggen
-		//cout << "hostile present" << hostile_present(p) << endl;									//Ist nur fürs debuggen
-		//if (curr_stone)cout << "must attack" << must_attack(test) << endl;						//Ist nur fürs debuggen
-
-		if (countRed == 0) {					// Spielende verkünden. Switchanweisung sind noch Blödsinn aber irgendwas muss drin stehen.
+		if (countRed == 0) {					// Spielende 
 			switch (fl_choice("Gelb hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
 			case 0:
 				restart_game();						// Spielbrett neu aufbauen
@@ -456,7 +431,7 @@ private:
 			}
 		}
 
-		if (countYellow == 0) {
+		if (countYellow == 0) {					// Spielende 
 			switch (fl_choice("Rot hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
 			case 0:
 				restart_game();						// Spielbrett neu aufbauen
@@ -467,14 +442,20 @@ private:
 			}
 		}
 		Fl::redraw();
-
 	}
 };
 
 int main() {
 
+	while (c != '#') {
+		ifs.get(c);
+		if (c == '\n')text += "\n";
+		if (c != '#')text += c;
+	}
+
 	My_window win{ {100,100},screen_x,screen_y,"Schach oder Dame" };						//Fenster zum Debuggen verkleinert um das Konsolenfenster zu sehen
 
 	win.wait_for_button();
+
 
 }
