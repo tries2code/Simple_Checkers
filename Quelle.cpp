@@ -202,6 +202,35 @@ private:
 	static void cb_tile_pressed(Address, Address addr) { reference_to<My_window>(addr).tile_pressed(); }
 
 	void rules() { Rules_window* rls = new Rules_window({ 100,100 }, screen_x, screen_y, "Rules"); }
+
+	void kill_stone(int i) {    // wird beim Schlagen eines Steins aufgerufen
+		String strPlayer;
+
+		detach(stones[i]);
+		stones.erase(i);
+
+		if (c_turn == c_player1) {
+			countRed--;
+			strPlayer == "Rot";
+		}
+		if (c_turn == c_player2) {
+			countYellow--;
+			strPlayer == "Gelb";
+		}
+			
+		if (countRed == 0 || countYellow == 0) {					// Spielende 
+			switch (fl_choice(strPlayer + " hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
+			case 0:
+				restart_game();						// Spielbrett neu aufbauen
+				break;
+			case 1:
+				quit();
+				break;
+			}
+		}
+
+	}
+
 	void restart_game() {
 
 		c_turn = c_player1;
@@ -302,10 +331,7 @@ private:
 
 				for (int i = 0; i < stones.size(); i++) {
 					if (stones[i].center() == lost_stone) {
-						detach(stones[i]);
-						stones.erase(i);
-						if (c_turn == c_player1)countRed--;
-						if (c_turn == c_player2)countYellow--;
+						kill_stone(i);
 					}
 				}
 				temp_x = curr_stone->center().x - ca;
@@ -384,10 +410,7 @@ private:
 				for (int x = 0; x < stones.size(); x++) {
 					for (unsigned int j = 0; j < lost_stones.size(); j++) {
 						if (stones[x].center() == lost_stones[j]) {
-							detach(stones[x]);
-							stones.erase(x);
-							if (c_turn == c_player1)countRed--;
-							if (c_turn == c_player2)countYellow--;
+							kill_stone(x);
 						}
 					}
 				}
@@ -420,27 +443,7 @@ private:
 			}
 
 		}
-		if (countRed == 0) {					// Spielende 
-			switch (fl_choice("Gelb hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
-			case 0:
-				restart_game();						// Spielbrett neu aufbauen
-				break;
-			case 1:
-				quit();
-				break;
-			}
-		}
 
-		if (countYellow == 0) {					// Spielende 
-			switch (fl_choice("Rot hat gewonnen! Neues Spiel starten?", "Ja", "Nein", 0)) {
-			case 0:
-				restart_game();						// Spielbrett neu aufbauen
-				break;
-			case 1:
-				quit();
-				break;
-			}
-		}
 		Fl::redraw();
 	}
 };
