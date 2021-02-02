@@ -237,8 +237,7 @@ void  Checkers_window::tile_pressed() {
 
 	if (!tile_empty(p) && !stone_selected) {						//Spielstein auswählen
 		curr_stone = get_stone(p);
-		Color c_curr = curr_stone->fill_color();
-		if (c_curr == c_turn) {
+		if (curr_stone->fill_color() == c_turn) {
 			curr_stone->set_color(Color::cyan);
 			stone_selected = true;
 		}
@@ -247,11 +246,7 @@ void  Checkers_window::tile_pressed() {
 		if (!tile_empty(p) && stone_selected /*&& !must_attack({ temp_x - ca, temp_y - ca })*/) {		//Spielstein abwählen, auch bei Steinen die angreifen müssen
 			curr_stone->set_color(Color::white);
 			curr_stone = get_stone(p);
-			Color c_curr = curr_stone->fill_color();
-			if (c_curr == c_turn) {
-				curr_stone->set_color(Color::white);
-				stone_selected = false;
-			}
+			if (curr_stone->fill_color() == c_turn) curr_stone->set_color(Color::cyan);
 		}
 	}
 	if (tile_empty(p) && stone_selected && !must_attack({ temp_x - ca, temp_y - ca }) && !is_king(curr_stone)) {
